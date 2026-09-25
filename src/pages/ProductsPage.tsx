@@ -56,7 +56,6 @@ const ProductsPage = () => {
             "userId"
         );
 
-    //filters ကတော့ UI/client state ဖြစ်တဲ့အတွက် useState() ဆက်သုံးမယ်။
     const [filters, setFilters] =
         useState<ProductFilters>({
             category: null,
@@ -77,12 +76,7 @@ const ProductsPage = () => {
         queryFn: async () => {
             const response =
                 await api.get<User>(
-                    "/auth/me",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                    }
+                    "/auth/me"
                 );
 
             return response.data;
@@ -166,42 +160,10 @@ const ProductsPage = () => {
                     replace: true,
                 }
             );
-
-            return;
-        }
-
-        if (userIsError) {
-            localStorage.removeItem(
-                "accessToken"
-            );
-
-            localStorage.removeItem(
-                "userId"
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "theme-user-changed"
-                )
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "cart-user-changed"
-                )
-            );
-
-            navigate(
-                "/login",
-                {
-                    replace: true,
-                }
-            );
         }
     }, [
         accessToken,
         navigate,
-        userIsError,
     ]);
 
     const filteredProducts =
@@ -310,14 +272,24 @@ const ProductsPage = () => {
               ? "Failed to load products."
               : "";
 
-    if (
-        userLoading ||
-        !user
-    ) {
+    if (userLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <p>
                     Loading user...
+                </p>
+            </div>
+        );
+    }
+
+    if (
+        userIsError ||
+        !user
+    ) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <p className="text-red-600">
+                    Failed to load user.
                 </p>
             </div>
         );

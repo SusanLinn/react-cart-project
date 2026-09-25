@@ -90,12 +90,7 @@ const ProductDetailPage = () => {
         queryFn: async () => {
             const response =
                 await api.get<User>(
-                    "/auth/me",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                    }
+                    "/auth/me"
                 );
 
             return response.data;
@@ -145,42 +140,10 @@ const ProductDetailPage = () => {
                     replace: true,
                 }
             );
-
-            return;
-        }
-
-        if (userIsError) {
-            localStorage.removeItem(
-                "accessToken"
-            );
-
-            localStorage.removeItem(
-                "userId"
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "theme-user-changed"
-                )
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "cart-user-changed"
-                )
-            );
-
-            navigate(
-                "/login",
-                {
-                    replace: true,
-                }
-            );
         }
     }, [
         accessToken,
         navigate,
-        userIsError,
     ]);
 
     const handleIncreaseQuantity =
@@ -299,9 +262,30 @@ const ProductDetailPage = () => {
     }
 
     if (
-        productIsError ||
-        !product ||
+        userIsError ||
         !user
+    ) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600">
+                        Failed to load user.
+                    </p>
+
+                    <Link
+                        to={`/products?page=${fromPage}`}
+                        className="mt-4 inline-block underline"
+                    >
+                        Back to Products
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        productIsError ||
+        !product
     ) {
         return (
             <div className="flex min-h-screen items-center justify-center">
@@ -440,8 +424,7 @@ const ProductDetailPage = () => {
 
                             <p className="mt-2 text-xs text-muted-foreground">
                                 {product.stock}{" "}
-                                items
-                                available
+                                items available
                             </p>
                         </div>
 

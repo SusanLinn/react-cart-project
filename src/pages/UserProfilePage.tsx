@@ -80,12 +80,7 @@ const UserProfilePage = () => {
         queryFn: async () => {
             const response =
                 await api.get<User>(
-                    "/auth/me",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                    }
+                    "/auth/me"
                 );
 
             return response.data;
@@ -106,42 +101,10 @@ const UserProfilePage = () => {
                     replace: true,
                 }
             );
-
-            return;
-        }
-
-        if (userIsError) {
-            localStorage.removeItem(
-                "accessToken"
-            );
-
-            localStorage.removeItem(
-                "userId"
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "theme-user-changed"
-                )
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "cart-user-changed"
-                )
-            );
-
-            navigate(
-                "/login",
-                {
-                    replace: true,
-                }
-            );
         }
     }, [
         accessToken,
         navigate,
-        userIsError,
     ]);
 
     const handleLogout = () => {

@@ -92,12 +92,7 @@ const CartPage = () => {
         queryFn: async () => {
             const response =
                 await api.get<User>(
-                    "/auth/me",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                    }
+                    "/auth/me"
                 );
 
             return response.data;
@@ -118,42 +113,10 @@ const CartPage = () => {
                     replace: true,
                 }
             );
-
-            return;
-        }
-
-        if (userIsError) {
-            localStorage.removeItem(
-                "accessToken"
-            );
-
-            localStorage.removeItem(
-                "userId"
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "theme-user-changed"
-                )
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "cart-user-changed"
-                )
-            );
-
-            navigate(
-                "/login",
-                {
-                    replace: true,
-                }
-            );
         }
     }, [
         accessToken,
         navigate,
-        userIsError,
     ]);
 
     const totalProducts =
@@ -225,7 +188,9 @@ const CartPage = () => {
     const handleRemove = (
         productId: number
     ) => {
-        removeFromCart(productId);
+        removeFromCart(
+            productId
+        );
     };
 
     const handleLogout = () => {
@@ -270,7 +235,10 @@ const CartPage = () => {
         );
     }
 
-    if (!user) {
+    if (
+        userIsError ||
+        !user
+    ) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <p className="text-red-600">
