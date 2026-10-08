@@ -24,7 +24,7 @@ import ProductReviews from "../components/ProductReviews";
 
 import { Button } from "../components/ui/button";
 
-import { useCart } from "../hooks/useCart";
+import { useCartStore } from "../stores/useCartStore";
 
 import api from "../services/api";
 
@@ -42,9 +42,11 @@ const ProductDetailPage = () => {
     const [searchParams] =
         useSearchParams();
 
-    const {
-        addToCart,
-    } = useCart();
+    const addToCart =
+        useCartStore(
+            (state) =>
+                state.addToCart
+        );
 
     const fromPage = Math.max(
         1,
@@ -194,6 +196,17 @@ const ProductDetailPage = () => {
             "userId"
         );
 
+        window.dispatchEvent(
+            new Event(
+                "cart-user-changed"
+            )
+        );
+
+        window.dispatchEvent(
+            new Event(
+                "theme-user-changed"
+            )
+        );
         navigate(
             "/login",
             {

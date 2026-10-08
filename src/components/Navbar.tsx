@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 
 import ProfileMenu from "./ProfileMenu";
-import { useCart } from "../hooks/useCart";
+import { useCartStore } from "../stores/useCartStore";
 
 import { Button } from "./ui/button";
 
@@ -22,9 +22,19 @@ const Navbar = ({
     user,
     onLogout,
 }: NavbarProps) => {
-    const {
-        totalQuantity,
-    } = useCart();
+const totalQuantity =
+            useCartStore(
+                (state) =>
+                    state.cartProducts.reduce(
+                        (
+                            total,
+                            product
+                        ) =>
+                            total +
+                            product.quantity,
+                        0
+                    )
+            );
 
     return (
         <header className="border-b bg-background">

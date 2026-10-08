@@ -19,26 +19,52 @@ import Navbar from "../components/Navbar";
 
 import { Button } from "../components/ui/button";
 
-import { useCart } from "../hooks/useCart";
+import { useCartStore } from "../stores/useCartStore";
 
 import api from "../services/api";
 
 import type { User } from "../types";
 
+const roundMoney = (
+    value: number
+) => {
+    return Number(
+        value.toFixed(2)
+    );
+};
+
 const CartPage = () => {
     const navigate = useNavigate();
 
-    const {
-        cartProducts,
-        totalProducts,
-        totalQuantity,
-        subtotal,
-        discountedTotal,
-        cartLoading,
-        updateQuantity,
-        removeFromCart,
-        clearCart,
-    } = useCart();
+    const cartProducts =
+        useCartStore(
+            (state) =>
+                state.cartProducts
+        );
+
+    const cartLoading =
+        useCartStore(
+            (state) =>
+                state.cartLoading
+        );
+
+    const updateQuantity =
+        useCartStore(
+            (state) =>
+                state.updateQuantity
+        );
+
+    const removeFromCart =
+        useCartStore(
+            (state) =>
+                state.removeFromCart
+        );
+
+    const clearCart =
+        useCartStore(
+            (state) =>
+                state.clearCart
+        );
 
     const [user, setUser] =
         useState<User | null>(null);
@@ -49,12 +75,50 @@ const CartPage = () => {
     const [error, setError] =
         useState("");
 
-    const discountAmount =
-        Number(
+    const totalProducts =
+        cartProducts.length;
+
+    const totalQuantity =
+        cartProducts.reduce(
             (
-                subtotal -
+                total,
+                product
+            ) =>
+                total +
+                product.quantity,
+            0
+        );
+
+    const subtotal =
+        roundMoney(
+            cartProducts.reduce(
+                (
+                    total,
+                    product
+                ) =>
+                    total +
+                    product.total,
+                0
+            )
+        );
+
+    const discountedTotal =
+        roundMoney(
+            cartProducts.reduce(
+                (
+                    total,
+                    product
+                ) =>
+                    total +
+                    product.discountedTotal,
+                0
+            )
+        );
+
+    const discountAmount =
+        roundMoney(
+            subtotal -
                 discountedTotal
-            ).toFixed(2)
         );
 
     useEffect(() => {
@@ -96,7 +160,7 @@ const CartPage = () => {
             }
         };
 
-        loadUser();
+        void loadUser();
     }, [navigate]);
 
     const handleIncrease = (
@@ -132,6 +196,18 @@ const CartPage = () => {
 
         localStorage.removeItem(
             "userId"
+        );
+
+        window.dispatchEvent(
+            new Event(
+                "cart-user-changed"
+            )
+        );
+
+        window.dispatchEvent(
+            new Event(
+                "theme-user-changed"
+            )
         );
 
         navigate(

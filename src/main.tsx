@@ -4,8 +4,9 @@ import { RouterProvider } from "react-router-dom";
 
 import "./index.css";
 
-import CartProvider from "./context/CartProvider";
 import ThemeProvider from "./context/ThemeProvider";
+
+import CartStoreInitializer from "./stores/CartStoreInitializer";
 
 import router from "./router/router";
 
@@ -14,11 +15,10 @@ createRoot(
 ).render(
     <StrictMode>
         <ThemeProvider>
-            <CartProvider>
-                <RouterProvider
-                    router={router}
-                />
-            </CartProvider>
+            <CartStoreInitializer />
+            <RouterProvider
+                router={router}
+            />
         </ThemeProvider>
     </StrictMode>
 );
