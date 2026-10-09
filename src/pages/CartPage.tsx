@@ -1,7 +1,10 @@
 import {
     useEffect,
-    useState,
 } from "react";
+
+import {
+    useQuery,
+} from "@tanstack/react-query";
 
 import {
     ArrowLeft,
@@ -36,6 +39,16 @@ const roundMoney = (
 const CartPage = () => {
     const navigate = useNavigate();
 
+    const accessToken =
+        localStorage.getItem(
+            "accessToken"
+        );
+
+    const userId =
+        localStorage.getItem(
+            "userId"
+        );
+
     const cartProducts =
         useCartStore(
             (state) =>
@@ -66,14 +79,82 @@ const CartPage = () => {
                 state.clearCart
         );
 
-    const [user, setUser] =
-        useState<User | null>(null);
+    const {
+        data: user,
+        isPending: userLoading,
+        isError: userIsError,
+    } = useQuery<User>({
+        queryKey: [
+            "currentUser",
+            userId,
+        ],
 
-    const [userLoading, setUserLoading] =
-        useState(true);
+        queryFn: async () => {
+            const response =
+                await api.get<User>(
+                    "/auth/me",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                    }
+                );
 
-    const [error, setError] =
-        useState("");
+            return response.data;
+        },
+
+        enabled: Boolean(
+            accessToken
+        ),
+
+        retry: false,
+    });
+
+    useEffect(() => {
+        if (!accessToken) {
+            navigate(
+                "/login",
+                {
+                    replace: true,
+                }
+            );
+
+            return;
+        }
+
+        if (userIsError) {
+            localStorage.removeItem(
+                "accessToken"
+            );
+
+            localStorage.removeItem(
+                "userId"
+            );
+
+            window.dispatchEvent(
+                new Event(
+                    "theme-user-changed"
+                )
+            );
+
+            window.dispatchEvent(
+                new Event(
+                    "cart-user-changed"
+                )
+            );
+
+            navigate(
+                "/login",
+                {
+                    replace: true,
+                }
+            );
+        }
+    }, [
+        accessToken,
+        navigate,
+        userIsError,
+    ]);
 
     const totalProducts =
         cartProducts.length;
@@ -121,48 +202,6 @@ const CartPage = () => {
                 discountedTotal
         );
 
-    useEffect(() => {
-        const loadUser = async () => {
-            const accessToken =
-                localStorage.getItem(
-                    "accessToken"
-                );
-
-            if (!accessToken) {
-                navigate(
-                    "/login",
-                    {
-                        replace: true,
-                    }
-                );
-
-                return;
-            }
-
-            try {
-                const response =
-                    await api.get<User>(
-                        "/auth/me",
-                        {
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`,
-                            },
-                        }
-                    );
-
-                setUser(response.data);
-            } catch {
-                setError(
-                    "Failed to load user."
-                );
-            } finally {
-                setUserLoading(false);
-            }
-        };
-
-        void loadUser();
-    }, [navigate]);
-
     const handleIncrease = (
         productId: number,
         quantity: number
@@ -200,13 +239,13 @@ const CartPage = () => {
 
         window.dispatchEvent(
             new Event(
-                "cart-user-changed"
+                "theme-user-changed"
             )
         );
 
         window.dispatchEvent(
             new Event(
-                "theme-user-changed"
+                "cart-user-changed"
             )
         );
 
@@ -231,12 +270,11 @@ const CartPage = () => {
         );
     }
 
-    if (error || !user) {
+    if (!user) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <p className="text-red-600">
-                    {error ||
-                        "Failed to load user."}
+                    Failed to load user.
                 </p>
             </div>
         );

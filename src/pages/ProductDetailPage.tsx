@@ -4,6 +4,10 @@ import {
 } from "react";
 
 import {
+    useQuery,
+} from "@tanstack/react-query";
+
+import {
     ArrowLeft,
     Minus,
     Plus,
@@ -42,6 +46,16 @@ const ProductDetailPage = () => {
     const [searchParams] =
         useSearchParams();
 
+    const accessToken =
+        localStorage.getItem(
+            "accessToken"
+        );
+
+    const userId =
+        localStorage.getItem(
+            "userId"
+        );
+
     const addToCart =
         useCartStore(
             (state) =>
@@ -55,116 +69,152 @@ const ProductDetailPage = () => {
         ) || 1
     );
 
-    const [user, setUser] =
-        useState<User | null>(null);
-
-    const [product, setProduct] =
-        useState<Product | null>(null);
-
     const [quantity, setQuantity] =
         useState(1);
 
-    const [addedMessage, setAddedMessage] =
-        useState("");
+    const [
+        addedMessage,
+        setAddedMessage,
+    ] = useState("");
 
-    const [loading, setLoading] =
-        useState(true);
+    const {
+        data: user,
+        isPending: userLoading,
+        isError: userIsError,
+    } = useQuery<User>({
+        queryKey: [
+            "currentUser",
+            userId,
+        ],
 
-    const [error, setError] =
-        useState("");
+        queryFn: async () => {
+            const response =
+                await api.get<User>(
+                    "/auth/me",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                    }
+                );
+
+            return response.data;
+        },
+
+        enabled: Boolean(
+            accessToken
+        ),
+
+        retry: false,
+    });
+
+    const {
+        data: product,
+        isPending:
+            productLoading,
+        isError:
+            productIsError,
+    } = useQuery<Product>({
+        queryKey: [
+            "product",
+            productId,
+        ],
+
+        queryFn: async () => {
+            const response =
+                await api.get<Product>(
+                    `/products/${productId}`
+                );
+
+            return response.data;
+        },
+
+        enabled: Boolean(
+            accessToken &&
+                productId
+        ),
+
+        retry: false,
+    });
 
     useEffect(() => {
-        const loadPageData =
-            async () => {
-                const accessToken =
-                    localStorage.getItem(
-                        "accessToken"
-                    );
-
-                if (!accessToken) {
-                    navigate(
-                        "/login",
-                        {
-                            replace: true,
-                        }
-                    );
-
-                    return;
+        if (!accessToken) {
+            navigate(
+                "/login",
+                {
+                    replace: true,
                 }
+            );
 
-                if (!productId) {
-                    setError(
-                        "Product not found."
-                    );
-
-                    setLoading(false);
-
-                    return;
-                }
-
-                try {
-                    const [
-                        userResponse,
-                        productResponse,
-                    ] =
-                        await Promise.all([
-                            api.get<User>(
-                                "/auth/me",
-                                {
-                                    headers: {
-                                        Authorization: `Bearer ${accessToken}`,
-                                    },
-                                }
-                            ),
-
-                            api.get<Product>(
-                                `/products/${productId}`
-                            ),
-                        ]);
-
-                    setUser(
-                        userResponse.data
-                    );
-
-                    setProduct(
-                        productResponse.data
-                    );
-                } catch {
-                    setError(
-                        "Failed to load product."
-                    );
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-        loadPageData();
-    }, [
-        navigate,
-        productId,
-    ]);
-
-    const handleIncreaseQuantity = () => {
-        if (!product) {
             return;
         }
 
-        if (quantity < product.stock) {
-            setQuantity(
-                (previousQuantity) =>
-                    previousQuantity + 1
+        if (userIsError) {
+            localStorage.removeItem(
+                "accessToken"
             );
-        }
-    };
 
-    const handleDecreaseQuantity = () => {
-        if (quantity > 1) {
-            setQuantity(
-                (previousQuantity) =>
-                    previousQuantity - 1
+            localStorage.removeItem(
+                "userId"
+            );
+
+            window.dispatchEvent(
+                new Event(
+                    "theme-user-changed"
+                )
+            );
+
+            window.dispatchEvent(
+                new Event(
+                    "cart-user-changed"
+                )
+            );
+
+            navigate(
+                "/login",
+                {
+                    replace: true,
+                }
             );
         }
-    };
+    }, [
+        accessToken,
+        navigate,
+        userIsError,
+    ]);
+
+    const handleIncreaseQuantity =
+        () => {
+            if (!product) {
+                return;
+            }
+
+            if (
+                quantity <
+                product.stock
+            ) {
+                setQuantity(
+                    (
+                        previousQuantity
+                    ) =>
+                        previousQuantity +
+                        1
+                );
+            }
+        };
+
+    const handleDecreaseQuantity =
+        () => {
+            if (quantity > 1) {
+                setQuantity(
+                    (
+                        previousQuantity
+                    ) =>
+                        previousQuantity -
+                        1
+                );
+            }
+        };
 
     const handleAddToCart = () => {
         if (!product) {
@@ -198,15 +248,16 @@ const ProductDetailPage = () => {
 
         window.dispatchEvent(
             new Event(
-                "cart-user-changed"
+                "theme-user-changed"
             )
         );
 
         window.dispatchEvent(
             new Event(
-                "theme-user-changed"
+                "cart-user-changed"
             )
         );
+
         navigate(
             "/login",
             {
@@ -215,7 +266,29 @@ const ProductDetailPage = () => {
         );
     };
 
-    if (loading) {
+    if (!productId) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600">
+                        Product not found.
+                    </p>
+
+                    <Link
+                        to={`/products?page=${fromPage}`}
+                        className="mt-4 inline-block underline"
+                    >
+                        Back to Products
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        userLoading ||
+        productLoading
+    ) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <p>
@@ -226,7 +299,7 @@ const ProductDetailPage = () => {
     }
 
     if (
-        error ||
+        productIsError ||
         !product ||
         !user
     ) {
@@ -234,8 +307,8 @@ const ProductDetailPage = () => {
             <div className="flex min-h-screen items-center justify-center">
                 <div className="text-center">
                     <p className="text-red-600">
-                        {error ||
-                            "Product not found."}
+                        Failed to load
+                        product.
                     </p>
 
                     <Link
@@ -338,7 +411,8 @@ const ProductDetailPage = () => {
                                         handleDecreaseQuantity
                                     }
                                     disabled={
-                                        quantity === 1
+                                        quantity ===
+                                        1
                                     }
                                 >
                                     <Minus className="size-4" />
@@ -365,7 +439,8 @@ const ProductDetailPage = () => {
                             </div>
 
                             <p className="mt-2 text-xs text-muted-foreground">
-                                {product.stock} items
+                                {product.stock}{" "}
+                                items
                                 available
                             </p>
                         </div>
@@ -377,7 +452,8 @@ const ProductDetailPage = () => {
                                 handleAddToCart
                             }
                             disabled={
-                                product.stock === 0
+                                product.stock ===
+                                0
                             }
                         >
                             <ShoppingCart className="size-4" />
@@ -387,7 +463,9 @@ const ProductDetailPage = () => {
 
                         {addedMessage && (
                             <p className="mt-3 text-sm font-medium">
-                                {addedMessage}
+                                {
+                                    addedMessage
+                                }
                             </p>
                         )}
 

@@ -1,5 +1,16 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+    useState,
+    type FormEvent,
+} from "react";
+
+import {
+    useMutation,
+    useQueryClient,
+} from "@tanstack/react-query";
+
+import {
+    useNavigate,
+} from "react-router-dom";
 
 import {
     Card,
@@ -12,10 +23,28 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 
 import api from "../services/api";
+
 import type { User } from "../types";
+
+interface LoginData {
+    username: string;
+    password: string;
+}
+
+interface LoginResponse {
+    accessToken: string;
+}
+
+interface LoginResult {
+    accessToken: string;
+    user: User;
+}
 
 const LoginForm = () => {
     const navigate = useNavigate();
+
+    const queryClient =
+        useQueryClient();
 
     const [username, setUsername] =
         useState("");
@@ -23,20 +52,105 @@ const LoginForm = () => {
     const [password, setPassword] =
         useState("");
 
-    const [usernameError, setUsernameError] =
-        useState("");
+    const [
+        usernameError,
+        setUsernameError,
+    ] = useState("");
 
-    const [passwordError, setPasswordError] =
-        useState("");
+    const [
+        passwordError,
+        setPasswordError,
+    ] = useState("");
 
     const [error, setError] =
         useState("");
 
-    const [loading, setLoading] =
-        useState(false);
+    const loginMutation =
+        useMutation<
+            LoginResult,
+            Error,
+            LoginData
+        >({
+            mutationFn: async (
+                loginData
+            ) => {
+                const response =
+                    await api.post<LoginResponse>(
+                        "/auth/login",
+                        loginData
+                    );
 
-    const handleSubmit = async (
-        event: React.FormEvent<HTMLFormElement>
+                const accessToken =
+                    response.data
+                        .accessToken;
+
+                const userResponse =
+                    await api.get<User>(
+                        "/auth/me",
+                        {
+                            headers: {
+                                Authorization: `Bearer ${accessToken}`,
+                            },
+                        }
+                    );
+
+                return {
+                    accessToken,
+                    user: userResponse.data,
+                };
+            },
+
+            onSuccess: ({
+                accessToken,
+                user,
+            }) => {
+                localStorage.setItem(
+                    "accessToken",
+                    accessToken
+                );
+
+                localStorage.setItem(
+                    "userId",
+                    String(user.id)
+                );
+
+                queryClient.setQueryData<User>(
+                    [
+                        "currentUser",
+                        String(user.id),
+                    ],
+                    user
+                );
+
+                window.dispatchEvent(
+                    new Event(
+                        "cart-user-changed"
+                    )
+                );
+
+                window.dispatchEvent(
+                    new Event(
+                        "theme-user-changed"
+                    )
+                );
+
+                navigate(
+                    "/products",
+                    {
+                        replace: true,
+                    }
+                );
+            },
+
+            onError: () => {
+                setError(
+                    "Invalid username or password."
+                );
+            },
+        });
+
+    const handleSubmit = (
+        event: FormEvent<HTMLFormElement>
     ) => {
         event.preventDefault();
 
@@ -63,65 +177,10 @@ const LoginForm = () => {
             return;
         }
 
-        setLoading(true);
-
-        try {
-            const response = await api.post(
-                "/auth/login",
-                {
-                    username,
-                    password,
-                }
-            );
-
-            const accessToken =
-                response.data.accessToken;
-
-            localStorage.setItem(
-                "accessToken",
-                accessToken
-            );
-
-            const userResponse =
-                await api.get<User>(
-                    "/auth/me",
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                    }
-                );
-
-            localStorage.setItem(
-                "userId",
-                String(userResponse.data.id)
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "cart-user-changed"
-                )
-            );
-
-            window.dispatchEvent(
-                new Event(
-                    "theme-user-changed"
-                )
-            );
-
-            navigate(
-                "/products",
-                {
-                    replace: true,
-                }
-            );
-        } catch {
-            setError(
-                "Invalid username or password."
-            );
-        } finally {
-            setLoading(false);
-        }
+        loginMutation.mutate({
+            username,
+            password,
+        });
     };
 
     return (
@@ -135,24 +194,34 @@ const LoginForm = () => {
 
                 <CardContent>
                     <form
-                        onSubmit={handleSubmit}
+                        onSubmit={
+                            handleSubmit
+                        }
                         className="space-y-4"
                     >
                         <div className="space-y-2">
                             <Input
                                 type="text"
                                 placeholder="Username"
-                                value={username}
-                                onChange={(event) =>
+                                value={
+                                    username
+                                }
+                                onChange={(
+                                    event
+                                ) =>
                                     setUsername(
-                                        event.target.value
+                                        event
+                                            .target
+                                            .value
                                     )
                                 }
                             />
 
                             {usernameError && (
                                 <p className="text-sm text-red-600">
-                                    {usernameError}
+                                    {
+                                        usernameError
+                                    }
                                 </p>
                             )}
                         </div>
@@ -161,17 +230,25 @@ const LoginForm = () => {
                             <Input
                                 type="password"
                                 placeholder="Password"
-                                value={password}
-                                onChange={(event) =>
+                                value={
+                                    password
+                                }
+                                onChange={(
+                                    event
+                                ) =>
                                     setPassword(
-                                        event.target.value
+                                        event
+                                            .target
+                                            .value
                                     )
                                 }
                             />
 
                             {passwordError && (
                                 <p className="text-sm text-red-600">
-                                    {passwordError}
+                                    {
+                                        passwordError
+                                    }
                                 </p>
                             )}
                         </div>
@@ -185,9 +262,11 @@ const LoginForm = () => {
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={loading}
+                            disabled={
+                                loginMutation.isPending
+                            }
                         >
-                            {loading
+                            {loginMutation.isPending
                                 ? "Logging in..."
                                 : "Login"}
                         </Button>

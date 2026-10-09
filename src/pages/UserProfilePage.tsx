@@ -1,8 +1,11 @@
 import {
     useEffect,
-    useState,
     type ReactNode,
 } from "react";
+
+import {
+    useQuery,
+} from "@tanstack/react-query";
 
 import {
     ArrowLeft,
@@ -54,56 +57,92 @@ const DetailRow = ({
 const UserProfilePage = () => {
     const navigate = useNavigate();
 
-    const [user, setUser] =
-        useState<User | null>(null);
+    const accessToken =
+        localStorage.getItem(
+            "accessToken"
+        );
 
-    const [loading, setLoading] =
-        useState(true);
+    const userId =
+        localStorage.getItem(
+            "userId"
+        );
 
-    const [error, setError] =
-        useState("");
+    const {
+        data: user,
+        isPending: userLoading,
+        isError: userIsError,
+    } = useQuery<User>({
+        queryKey: [
+            "currentUser",
+            userId,
+        ],
 
-    useEffect(() => {
-        const loadUser = async () => {
-            const accessToken =
-                localStorage.getItem(
-                    "accessToken"
-                );
-
-            if (!accessToken) {
-                navigate(
-                    "/login",
+        queryFn: async () => {
+            const response =
+                await api.get<User>(
+                    "/auth/me",
                     {
-                        replace: true,
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
                     }
                 );
 
-                return;
-            }
+            return response.data;
+        },
 
-            try {
-                const response =
-                    await api.get<User>(
-                        "/auth/me",
-                        {
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`,
-                            },
-                        }
-                    );
+        enabled: Boolean(
+            accessToken
+        ),
 
-                setUser(response.data);
-            } catch {
-                setError(
-                    "Failed to load user profile."
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
+        retry: false,
+    });
 
-        loadUser();
-    }, [navigate]);
+    useEffect(() => {
+        if (!accessToken) {
+            navigate(
+                "/login",
+                {
+                    replace: true,
+                }
+            );
+
+            return;
+        }
+
+        if (userIsError) {
+            localStorage.removeItem(
+                "accessToken"
+            );
+
+            localStorage.removeItem(
+                "userId"
+            );
+
+            window.dispatchEvent(
+                new Event(
+                    "theme-user-changed"
+                )
+            );
+
+            window.dispatchEvent(
+                new Event(
+                    "cart-user-changed"
+                )
+            );
+
+            navigate(
+                "/login",
+                {
+                    replace: true,
+                }
+            );
+        }
+    }, [
+        accessToken,
+        navigate,
+        userIsError,
+    ]);
 
     const handleLogout = () => {
         localStorage.removeItem(
@@ -112,6 +151,18 @@ const UserProfilePage = () => {
 
         localStorage.removeItem(
             "userId"
+        );
+
+        window.dispatchEvent(
+            new Event(
+                "theme-user-changed"
+            )
+        );
+
+        window.dispatchEvent(
+            new Event(
+                "cart-user-changed"
+            )
         );
 
         navigate(
@@ -137,7 +188,7 @@ const UserProfilePage = () => {
         );
     };
 
-    if (loading) {
+    if (userLoading) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <p>
@@ -147,13 +198,16 @@ const UserProfilePage = () => {
         );
     }
 
-    if (error || !user) {
+    if (
+        userIsError ||
+        !user
+    ) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <div className="text-center">
                     <p className="text-red-600">
-                        {error ||
-                            "User not found."}
+                        Failed to load user
+                        profile.
                     </p>
 
                     <Link
@@ -195,7 +249,9 @@ const UserProfilePage = () => {
                     <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                         <Avatar className="size-28 border">
                             <AvatarImage
-                                src={user.image}
+                                src={
+                                    user.image
+                                }
                                 alt={`${user.firstName} ${user.lastName}`}
                             />
 
@@ -207,21 +263,32 @@ const UserProfilePage = () => {
                         <div className="flex-1">
                             <div className="flex flex-wrap items-center gap-3">
                                 <h1 className="text-3xl font-bold">
-                                    {user.firstName}{" "}
-                                    {user.lastName}
+                                    {
+                                        user.firstName
+                                    }{" "}
+                                    {
+                                        user.lastName
+                                    }
                                 </h1>
 
                                 <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase">
-                                    {user.role}
+                                    {
+                                        user.role
+                                    }
                                 </span>
                             </div>
 
                             <p className="mt-2 text-muted-foreground">
-                                @{user.username}
+                                @
+                                {
+                                    user.username
+                                }
                             </p>
 
                             <p className="mt-1 text-sm text-muted-foreground">
-                                {user.email}
+                                {
+                                    user.email
+                                }
                             </p>
                         </div>
                     </div>
@@ -257,7 +324,9 @@ const UserProfilePage = () => {
 
                             <DetailRow
                                 label="Age"
-                                value={user.age}
+                                value={
+                                    user.age
+                                }
                             />
 
                             <DetailRow
@@ -273,12 +342,16 @@ const UserProfilePage = () => {
 
                             <DetailRow
                                 label="Phone Number"
-                                value={user.phone}
+                                value={
+                                    user.phone
+                                }
                             />
 
                             <DetailRow
                                 label="Email"
-                                value={user.email}
+                                value={
+                                    user.email
+                                }
                             />
                         </div>
                     </section>
@@ -355,14 +428,16 @@ const UserProfilePage = () => {
                             <DetailRow
                                 label="Company"
                                 value={
-                                    user.company.name
+                                    user.company
+                                        .name
                                 }
                             />
 
                             <DetailRow
                                 label="Job Title"
                                 value={
-                                    user.company.title
+                                    user.company
+                                        .title
                                 }
                             />
 

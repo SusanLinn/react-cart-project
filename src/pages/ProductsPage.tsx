@@ -5,6 +5,10 @@ import {
 } from "react";
 
 import {
+    useQuery,
+} from "@tanstack/react-query";
+
+import {
     useNavigate,
     useSearchParams,
 } from "react-router-dom";
@@ -42,15 +46,17 @@ const ProductsPage = () => {
         ) || 1
     );
 
-    const [user, setUser] =
-        useState<User | null>(null);
+    const accessToken =
+        localStorage.getItem(
+            "accessToken"
+        );
 
-    const [categories, setCategories] =
-        useState<Category[]>([]);
+    const userId =
+        localStorage.getItem(
+            "userId"
+        );
 
-    const [products, setProducts] =
-        useState<Product[]>([]);
-
+    //filters ကတော့ UI/client state ဖြစ်တဲ့အတွက် useState() ဆက်သုံးမယ်။
     const [filters, setFilters] =
         useState<ProductFilters>({
             category: null,
@@ -58,120 +64,145 @@ const ProductsPage = () => {
             maxPrice: null,
         });
 
-    const [loading, setLoading] =
-        useState(true);
+    const {
+        data: user,
+        isPending: userLoading,
+        isError: userIsError,
+    } = useQuery<User>({
+        queryKey: [
+            "currentUser",
+            userId,
+        ],
 
-    const [error, setError] =
-        useState("");
-
-    useEffect(() => {
-        const loadUser = async () => {
-            const accessToken =
-                localStorage.getItem(
-                    "accessToken"
-                );
-
-            if (!accessToken) {
-                navigate(
-                    "/login",
+        queryFn: async () => {
+            const response =
+                await api.get<User>(
+                    "/auth/me",
                     {
-                        replace: true,
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
                     }
                 );
 
-                return;
-            }
+            return response.data;
+        },
 
-            try {
-                const response =
-                    await api.get<User>(
-                        "/auth/me",
-                        {
-                            headers: {
-                                Authorization: `Bearer ${accessToken}`,
-                            },
-                        }
-                    );
+        enabled: Boolean(
+            accessToken
+        ),
 
-                setUser(response.data);
-            } catch {
-                localStorage.removeItem(
-                    "accessToken"
+        retry: false,
+    });
+
+    const {
+        data: categories = [],
+        isError:
+            categoriesIsError,
+    } = useQuery<Category[]>({
+        queryKey: [
+            "productCategories",
+        ],
+
+        queryFn: async () => {
+            const response =
+                await api.get<
+                    Category[]
+                >(
+                    "/products/categories"
                 );
 
-                localStorage.removeItem(
-                    "userId"
+            return response.data;
+        },
+
+        enabled: Boolean(
+            accessToken
+        ),
+
+        retry: false,
+    });
+
+    const {
+        data: products = [],
+        isPending:
+            productsLoading,
+        isError:
+            productsIsError,
+    } = useQuery<Product[]>({
+        queryKey: [
+            "products",
+            filters.category,
+        ],
+
+        queryFn: async () => {
+            const endpoint =
+                filters.category
+                    ? `/products/category/${encodeURIComponent(
+                          filters.category
+                      )}?limit=0`
+                    : "/products?limit=0";
+
+            const response =
+                await api.get<ProductsResponse>(
+                    endpoint
                 );
 
-                navigate(
-                    "/login",
-                    {
-                        replace: true,
-                    }
-                );
-            }
-        };
+            return response.data
+                .products;
+        },
 
-        loadUser();
-    }, [navigate]);
+        enabled: Boolean(
+            accessToken
+        ),
+
+        retry: false,
+    });
 
     useEffect(() => {
-        const loadCategories =
-            async () => {
-                try {
-                    const response =
-                        await api.get<
-                            Category[]
-                        >(
-                            "/products/categories"
-                        );
-
-                    setCategories(
-                        response.data
-                    );
-                } catch {
-                    setError(
-                        "Failed to load categories."
-                    );
+        if (!accessToken) {
+            navigate(
+                "/login",
+                {
+                    replace: true,
                 }
-            };
+            );
 
-        loadCategories();
-    }, []);
+            return;
+        }
 
-    useEffect(() => {
-        const loadProducts =
-            async () => {
-                setLoading(true);
-                setError("");
+        if (userIsError) {
+            localStorage.removeItem(
+                "accessToken"
+            );
 
-                try {
-                    const endpoint =
-                        filters.category
-                            ? `/products/category/${encodeURIComponent(
-                                  filters.category
-                              )}?limit=0`
-                            : "/products?limit=0";
+            localStorage.removeItem(
+                "userId"
+            );
 
-                    const response =
-                        await api.get<ProductsResponse>(
-                            endpoint
-                        );
+            window.dispatchEvent(
+                new Event(
+                    "theme-user-changed"
+                )
+            );
 
-                    setProducts(
-                        response.data.products
-                    );
-                } catch {
-                    setError(
-                        "Failed to load products."
-                    );
-                } finally {
-                    setLoading(false);
+            window.dispatchEvent(
+                new Event(
+                    "cart-user-changed"
+                )
+            );
+
+            navigate(
+                "/login",
+                {
+                    replace: true,
                 }
-            };
-
-        loadProducts();
-    }, [filters.category]);
+            );
+        }
+    }, [
+        accessToken,
+        navigate,
+        userIsError,
+    ]);
 
     const filteredProducts =
         useMemo(() => {
@@ -253,9 +284,9 @@ const ProductsPage = () => {
         );
 
         window.dispatchEvent(
-        new Event(
-            "theme-user-changed"
-        )
+            new Event(
+                "theme-user-changed"
+            )
         );
 
         window.dispatchEvent(
@@ -263,7 +294,7 @@ const ProductsPage = () => {
                 "cart-user-changed"
             )
         );
-        
+
         navigate(
             "/login",
             {
@@ -272,7 +303,17 @@ const ProductsPage = () => {
         );
     };
 
-    if (!user) {
+    const error =
+        categoriesIsError
+            ? "Failed to load categories."
+            : productsIsError
+              ? "Failed to load products."
+              : "";
+
+    if (
+        userLoading ||
+        !user
+    ) {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <p>
@@ -300,7 +341,9 @@ const ProductsPage = () => {
                             categories={
                                 categories
                             }
-                            filters={filters}
+                            filters={
+                                filters
+                            }
                             onApply={
                                 handleApplyFilters
                             }
@@ -332,10 +375,11 @@ const ProductsPage = () => {
                             </div>
                         </div>
 
-                        {loading ? (
+                        {productsLoading ? (
                             <div className="flex min-h-[400px] items-center justify-center">
                                 <p>
-                                    Loading products...
+                                    Loading
+                                    products...
                                 </p>
                             </div>
                         ) : error ? (
