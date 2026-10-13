@@ -12,6 +12,8 @@ import {
     useNavigate,
 } from "react-router-dom";
 
+import { z } from "zod";
+
 import {
     Card,
     CardContent,
@@ -24,16 +26,18 @@ import { Button } from "./ui/button";
 
 import api from "../services/api";
 
+import {
+    loginResponseSchema,
+    loginSchema,
+    type LoginData,
+    type LoginResponse,
+} from "../schemas/authSchemas";
+
+import {
+    userSchema,
+} from "../schemas/userSchemas";
+
 import type { User } from "../types";
-
-interface LoginData {
-    username: string;
-    password: string;
-}
-
-interface LoginResponse {
-    accessToken: string;
-}
 
 interface LoginResult {
     accessToken: string;
@@ -41,7 +45,8 @@ interface LoginResult {
 }
 
 const LoginForm = () => {
-    const navigate = useNavigate();
+    const navigate =
+        useNavigate();
 
     const queryClient =
         useQueryClient();
@@ -75,28 +80,40 @@ const LoginForm = () => {
                 loginData
             ) => {
                 const response =
-                    await api.post<LoginResponse>(
+                    await api.post(
                         "/auth/login",
                         loginData
                     );
 
+                const loginResponse:
+                    LoginResponse =
+                    loginResponseSchema.parse(
+                        response.data
+                    );
+
                 const accessToken =
-                    response.data
+                    loginResponse
                         .accessToken;
 
                 const userResponse =
-                    await api.get<User>(
+                    await api.get(
                         "/auth/me",
                         {
                             headers: {
-                                Authorization: `Bearer ${accessToken}`,
+                                Authorization:
+                                    `Bearer ${accessToken}`,
                             },
                         }
                     );
 
+                const user: User =
+                    userSchema.parse(
+                        userResponse.data
+                    );
+
                 return {
                     accessToken,
-                    user: userResponse.data,
+                    user,
                 };
             },
 
@@ -142,7 +159,20 @@ const LoginForm = () => {
                 );
             },
 
-            onError: () => {
+            onError: (
+                mutationError
+            ) => {
+                if (
+                    mutationError instanceof
+                    z.ZodError
+                ) {
+                    setError(
+                        "Invalid server response."
+                    );
+
+                    return;
+                }
+
                 setError(
                     "Invalid username or password."
                 );
@@ -150,7 +180,8 @@ const LoginForm = () => {
         });
 
     const handleSubmit = (
-        event: FormEvent<HTMLFormElement>
+        event:
+            FormEvent<HTMLFormElement>
     ) => {
         event.preventDefault();
 
@@ -158,29 +189,38 @@ const LoginForm = () => {
         setPasswordError("");
         setError("");
 
-        if (!username.trim()) {
-            setUsernameError(
-                "Username is required."
-            );
-        }
-
-        if (!password.trim()) {
-            setPasswordError(
-                "Password is required."
-            );
-        }
+        const validationResult =
+            loginSchema.safeParse({
+                username,
+                password,
+            });
 
         if (
-            !username.trim() ||
-            !password.trim()
+            !validationResult.success
         ) {
+            const fieldErrors =
+                z.flattenError(
+                    validationResult.error
+                ).fieldErrors;
+
+            setUsernameError(
+                fieldErrors
+                    .username?.[0] ??
+                    ""
+            );
+
+            setPasswordError(
+                fieldErrors
+                    .password?.[0] ??
+                    ""
+            );
+
             return;
         }
 
-        loginMutation.mutate({
-            username,
-            password,
-        });
+        loginMutation.mutate(
+            validationResult.data
+        );
     };
 
     return (
@@ -263,10 +303,12 @@ const LoginForm = () => {
                             type="submit"
                             className="w-full"
                             disabled={
-                                loginMutation.isPending
+                                loginMutation
+                                    .isPending
                             }
                         >
-                            {loginMutation.isPending
+                            {loginMutation
+                                .isPending
                                 ? "Logging in..."
                                 : "Login"}
                         </Button>

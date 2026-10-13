@@ -28,6 +28,10 @@ import api from "../services/api";
 
 import type { User } from "../types";
 
+import {
+    userSchema,
+} from "../schemas/userSchemas";
+
 const roundMoney = (
     value: number
 ) => {
@@ -88,14 +92,15 @@ const CartPage = () => {
             "currentUser",
             userId,
         ],
-
         queryFn: async () => {
             const response =
-                await api.get<User>(
+                await api.get(
                     "/auth/me"
                 );
 
-            return response.data;
+            return userSchema.parse(
+                response.data
+            );
         },
 
         enabled: Boolean(

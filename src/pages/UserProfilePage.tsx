@@ -32,6 +32,10 @@ import api from "../services/api";
 
 import type { User } from "../types";
 
+import {
+    userSchema,
+} from "../schemas/userSchemas";
+
 interface DetailRowProps {
     label: string;
     value: ReactNode;
@@ -79,13 +83,14 @@ const UserProfilePage = () => {
 
         queryFn: async () => {
             const response =
-                await api.get<User>(
+                await api.get(
                     "/auth/me"
                 );
 
-            return response.data;
+            return userSchema.parse(
+                response.data
+            );
         },
-
         enabled: Boolean(
             accessToken
         ),

@@ -18,6 +18,15 @@ import MobileFilterDrawer from "../components/MobileFilterDrawer";
 import Navbar from "../components/Navbar";
 import Pagination from "../components/Pagination";
 import ProductList from "../components/ProductList";
+import ProductTable from "../components/ProductTable";
+
+import {
+    Button,
+} from "../components/ui/button";
+
+import {
+    userSchema,
+} from "../schemas/userSchemas";
 
 import api from "../services/api";
 
@@ -31,20 +40,28 @@ import type {
 
 const PRODUCTS_PER_PAGE = 6;
 
+type ViewMode =
+    "grid" |
+    "table";
+
 const ProductsPage = () => {
-    const navigate = useNavigate();
+    const navigate =
+        useNavigate();
 
     const [
         searchParams,
         setSearchParams,
     ] = useSearchParams();
 
-    const currentPage = Math.max(
-        1,
-        Number(
-            searchParams.get("page")
-        ) || 1
-    );
+    const currentPage =
+        Math.max(
+            1,
+            Number(
+                searchParams.get(
+                    "page"
+                )
+            ) || 1
+        );
 
     const accessToken =
         localStorage.getItem(
@@ -56,12 +73,23 @@ const ProductsPage = () => {
             "userId"
         );
 
-    const [filters, setFilters] =
+    const [
+        filters,
+        setFilters,
+    ] =
         useState<ProductFilters>({
             category: null,
             minPrice: null,
             maxPrice: null,
         });
+
+    const [
+        viewMode,
+        setViewMode,
+    ] =
+        useState<ViewMode>(
+            "grid"
+        );
 
     const {
         data: user,
@@ -75,16 +103,19 @@ const ProductsPage = () => {
 
         queryFn: async () => {
             const response =
-                await api.get<User>(
+                await api.get(
                     "/auth/me"
                 );
 
-            return response.data;
+            return userSchema.parse(
+                response.data
+            );
         },
 
-        enabled: Boolean(
-            accessToken
-        ),
+        enabled:
+            Boolean(
+                accessToken
+            ),
 
         retry: false,
     });
@@ -109,9 +140,10 @@ const ProductsPage = () => {
             return response.data;
         },
 
-        enabled: Boolean(
-            accessToken
-        ),
+        enabled:
+            Boolean(
+                accessToken
+            ),
 
         retry: false,
     });
@@ -137,7 +169,9 @@ const ProductsPage = () => {
                     : "/products?limit=0";
 
             const response =
-                await api.get<ProductsResponse>(
+                await api.get<
+                    ProductsResponse
+                >(
                     endpoint
                 );
 
@@ -145,9 +179,10 @@ const ProductsPage = () => {
                 .products;
         },
 
-        enabled: Boolean(
-            accessToken
-        ),
+        enabled:
+            Boolean(
+                accessToken
+            ),
 
         retry: false,
     });
@@ -197,10 +232,11 @@ const ProductsPage = () => {
             filters.maxPrice,
         ]);
 
-    const totalPages = Math.ceil(
-        filteredProducts.length /
-            PRODUCTS_PER_PAGE
-    );
+    const totalPages =
+        Math.ceil(
+            filteredProducts.length /
+                PRODUCTS_PER_PAGE
+        );
 
     const startIndex =
         (currentPage - 1) *
@@ -214,9 +250,12 @@ const ProductsPage = () => {
         );
 
     const handleApplyFilters = (
-        newFilters: ProductFilters
+        newFilters:
+            ProductFilters
     ) => {
-        setFilters(newFilters);
+        setFilters(
+            newFilters
+        );
 
         setSearchParams({
             page: "1",
@@ -227,7 +266,8 @@ const ProductsPage = () => {
         page: number
     ) => {
         setSearchParams({
-            page: String(page),
+            page:
+                String(page),
         });
 
         window.scrollTo({
@@ -299,7 +339,9 @@ const ProductsPage = () => {
         <div className="min-h-screen bg-background">
             <Navbar
                 user={user}
-                onLogout={handleLogout}
+                onLogout={
+                    handleLogout
+                }
             />
 
             <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -324,7 +366,7 @@ const ProductsPage = () => {
                     </div>
 
                     <div>
-                        <div className="mb-6 flex items-center justify-between">
+                        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                             <p className="text-sm text-muted-foreground">
                                 {
                                     filteredProducts.length
@@ -332,18 +374,56 @@ const ProductsPage = () => {
                                 products
                             </p>
 
-                            <div className="lg:hidden">
-                                <MobileFilterDrawer
-                                    categories={
-                                        categories
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        viewMode ===
+                                        "grid"
+                                            ? "default"
+                                            : "outline"
                                     }
-                                    filters={
-                                        filters
+                                    onClick={() =>
+                                        setViewMode(
+                                            "grid"
+                                        )
                                     }
-                                    onApply={
-                                        handleApplyFilters
+                                >
+                                    Grid View
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={
+                                        viewMode ===
+                                        "table"
+                                            ? "default"
+                                            : "outline"
                                     }
-                                />
+                                    onClick={() =>
+                                        setViewMode(
+                                            "table"
+                                        )
+                                    }
+                                >
+                                    Table View
+                                </Button>
+
+                                <div className="lg:hidden">
+                                    <MobileFilterDrawer
+                                        categories={
+                                            categories
+                                        }
+                                        filters={
+                                            filters
+                                        }
+                                        onApply={
+                                            handleApplyFilters
+                                        }
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -365,38 +445,50 @@ const ProductsPage = () => {
                             <div className="flex min-h-[400px] items-center justify-center">
                                 <div className="text-center">
                                     <h2 className="font-semibold">
-                                        No products
+                                        No
+                                        products
                                         found
                                     </h2>
 
                                     <p className="mt-1 text-sm text-muted-foreground">
-                                        Try changing
-                                        your filters.
+                                        Try
+                                        changing
+                                        your
+                                        filters.
                                     </p>
                                 </div>
                             </div>
                         ) : (
                             <>
-                                <ProductList
-                                    products={
-                                        paginatedProducts
-                                    }
-                                    currentPage={
-                                        currentPage
-                                    }
-                                />
+                                {viewMode === "grid" ? (
+                                    <>
+                                        <ProductList
+                                            products={
+                                                paginatedProducts
+                                            }
+                                            currentPage={
+                                                currentPage
+                                            }
+                                        />
 
-                                {totalPages >
-                                    1 && (
-                                    <Pagination
-                                        currentPage={
-                                            currentPage
-                                        }
-                                        totalPages={
-                                            totalPages
-                                        }
-                                        onPageChange={
-                                            handlePageChange
+                                        {totalPages > 1 && (
+                                            <Pagination
+                                                currentPage={
+                                                    currentPage
+                                                }
+                                                totalPages={
+                                                    totalPages
+                                                }
+                                                onPageChange={
+                                                    handlePageChange
+                                                }
+                                            />
+                                        )}
+                                    </>
+                                ) : (
+                                    <ProductTable
+                                        products={
+                                            filteredProducts
                                         }
                                     />
                                 )}

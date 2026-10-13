@@ -37,6 +37,10 @@ import type {
     User,
 } from "../types";
 
+import {
+    userSchema,
+} from "../schemas/userSchemas";
+
 const ProductDetailPage = () => {
     const navigate = useNavigate();
 
@@ -89,11 +93,13 @@ const ProductDetailPage = () => {
 
         queryFn: async () => {
             const response =
-                await api.get<User>(
+                await api.get(
                     "/auth/me"
                 );
 
-            return response.data;
+            return userSchema.parse(
+                response.data
+            );
         },
 
         enabled: Boolean(
