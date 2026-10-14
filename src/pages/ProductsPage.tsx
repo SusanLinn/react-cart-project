@@ -25,6 +25,11 @@ import {
 } from "../components/ui/button";
 
 import {
+    categoriesSchema,
+    productsResponseSchema,
+} from "../schemas/productSchemas";
+
+import {
     userSchema,
 } from "../schemas/userSchemas";
 
@@ -34,7 +39,6 @@ import type {
     Category,
     Product,
     ProductFilters,
-    ProductsResponse,
     User,
 } from "../types";
 
@@ -131,13 +135,13 @@ const ProductsPage = () => {
 
         queryFn: async () => {
             const response =
-                await api.get<
-                    Category[]
-                >(
+                await api.get(
                     "/products/categories"
                 );
 
-            return response.data;
+            return categoriesSchema.parse(
+                response.data
+            );
         },
 
         enabled:
@@ -169,13 +173,16 @@ const ProductsPage = () => {
                     : "/products?limit=0";
 
             const response =
-                await api.get<
-                    ProductsResponse
-                >(
+                await api.get(
                     endpoint
                 );
 
-            return response.data
+            const validatedData =
+                productsResponseSchema.parse(
+                    response.data
+                );
+
+            return validatedData
                 .products;
         },
 
@@ -458,41 +465,39 @@ const ProductsPage = () => {
                                     </p>
                                 </div>
                             </div>
-                        ) : (
+                        ) : viewMode ===
+                          "grid" ? (
                             <>
-                                {viewMode === "grid" ? (
-                                    <>
-                                        <ProductList
-                                            products={
-                                                paginatedProducts
-                                            }
-                                            currentPage={
-                                                currentPage
-                                            }
-                                        />
+                                <ProductList
+                                    products={
+                                        paginatedProducts
+                                    }
+                                    currentPage={
+                                        currentPage
+                                    }
+                                />
 
-                                        {totalPages > 1 && (
-                                            <Pagination
-                                                currentPage={
-                                                    currentPage
-                                                }
-                                                totalPages={
-                                                    totalPages
-                                                }
-                                                onPageChange={
-                                                    handlePageChange
-                                                }
-                                            />
-                                        )}
-                                    </>
-                                ) : (
-                                    <ProductTable
-                                        products={
-                                            filteredProducts
+                                {totalPages >
+                                    1 && (
+                                    <Pagination
+                                        currentPage={
+                                            currentPage
+                                        }
+                                        totalPages={
+                                            totalPages
+                                        }
+                                        onPageChange={
+                                            handlePageChange
                                         }
                                     />
                                 )}
                             </>
+                        ) : (
+                            <ProductTable
+                                products={
+                                    filteredProducts
+                                }
+                            />
                         )}
                     </div>
                 </div>

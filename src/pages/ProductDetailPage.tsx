@@ -41,6 +41,10 @@ import {
     userSchema,
 } from "../schemas/userSchemas";
 
+import {
+    productSchema,
+} from "../schemas/productSchemas";
+
 const ProductDetailPage = () => {
     const navigate = useNavigate();
 
@@ -109,34 +113,36 @@ const ProductDetailPage = () => {
         retry: false,
     });
 
-    const {
-        data: product,
-        isPending:
-            productLoading,
-        isError:
-            productIsError,
-    } = useQuery<Product>({
-        queryKey: [
-            "product",
-            productId,
-        ],
+        const {
+            data: product,
+            isPending:
+                productLoading,
+            isError:
+                productIsError,
+        } = useQuery<Product>({
+            queryKey: [
+                "product",
+                productId,
+            ],
 
-        queryFn: async () => {
-            const response =
-                await api.get<Product>(
-                    `/products/${productId}`
+            queryFn: async () => {
+                const response =
+                    await api.get(
+                        `/products/${productId}`
+                    );
+
+                return productSchema.parse(
+                    response.data
                 );
+            },
 
-            return response.data;
-        },
+            enabled: Boolean(
+                accessToken &&
+                    productId
+            ),
 
-        enabled: Boolean(
-            accessToken &&
-                productId
-        ),
-
-        retry: false,
-    });
+            retry: false,
+        });
 
     useEffect(() => {
         if (!accessToken) {
