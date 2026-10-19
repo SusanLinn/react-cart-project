@@ -1,7 +1,14 @@
 import {
     useState,
-    type FormEvent,
 } from "react";
+
+import {
+    useForm,
+} from "react-hook-form";
+
+import {
+    zodResolver,
+} from "@hookform/resolvers/zod";
 
 import {
     useMutation,
@@ -24,6 +31,8 @@ import {
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 
+import FormErrorMessage from "./FormErrorMessage";
+
 import api from "../services/api";
 
 import {
@@ -37,38 +46,54 @@ import {
     userSchema,
 } from "../schemas/userSchemas";
 
-import type { User } from "../types";
+import type {
+    User,
+} from "../types";
+
 
 interface LoginResult {
     accessToken: string;
     user: User;
 }
 
+
 const LoginForm = () => {
+
     const navigate =
         useNavigate();
 
     const queryClient =
         useQueryClient();
 
-    const [username, setUsername] =
-        useState("");
-
-    const [password, setPassword] =
-        useState("");
-
     const [
-        usernameError,
-        setUsernameError,
+        loginError,
+        setLoginError,
     ] = useState("");
 
-    const [
-        passwordError,
-        setPasswordError,
-    ] = useState("");
 
-    const [error, setError] =
-        useState("");
+    const {
+        register,
+        handleSubmit,
+        formState: {
+            errors,
+        },
+    } = useForm<LoginData>({
+        resolver:
+            zodResolver(
+                loginSchema
+            ),
+
+        mode: "onSubmit",
+
+        reValidateMode:
+            "onSubmit",
+
+        defaultValues: {
+            username: "",
+            password: "",
+        },
+    });
+
 
     const loginMutation =
         useMutation<
@@ -79,6 +104,7 @@ const LoginForm = () => {
             mutationFn: async (
                 loginData
             ) => {
+
                 const response =
                     await api.post(
                         "/auth/login",
@@ -117,10 +143,12 @@ const LoginForm = () => {
                 };
             },
 
+
             onSuccess: ({
                 accessToken,
                 user,
             }) => {
+
                 localStorage.setItem(
                     "accessToken",
                     accessToken
@@ -128,13 +156,17 @@ const LoginForm = () => {
 
                 localStorage.setItem(
                     "userId",
-                    String(user.id)
+                    String(
+                        user.id
+                    )
                 );
 
                 queryClient.setQueryData<User>(
                     [
                         "currentUser",
-                        String(user.id),
+                        String(
+                            user.id
+                        ),
                     ],
                     user
                 );
@@ -159,145 +191,133 @@ const LoginForm = () => {
                 );
             },
 
+
             onError: (
                 mutationError
             ) => {
+
                 if (
                     mutationError instanceof
                     z.ZodError
                 ) {
-                    setError(
+                    setLoginError(
                         "Invalid server response."
                     );
 
                     return;
                 }
 
-                setError(
+                setLoginError(
                     "Invalid username or password."
                 );
             },
         });
 
-    const handleSubmit = (
-        event:
-            FormEvent<HTMLFormElement>
+
+    const clearLoginError = () => {
+        setLoginError("");
+    };
+
+
+    const onSubmit = (
+        data: LoginData
     ) => {
-        event.preventDefault();
 
-        setUsernameError("");
-        setPasswordError("");
-        setError("");
-
-        const validationResult =
-            loginSchema.safeParse({
-                username,
-                password,
-            });
-
-        if (
-            !validationResult.success
-        ) {
-            const fieldErrors =
-                z.flattenError(
-                    validationResult.error
-                ).fieldErrors;
-
-            setUsernameError(
-                fieldErrors
-                    .username?.[0] ??
-                    ""
-            );
-
-            setPasswordError(
-                fieldErrors
-                    .password?.[0] ??
-                    ""
-            );
-
-            return;
-        }
+        clearLoginError();
 
         loginMutation.mutate(
-            validationResult.data
+            data
         );
     };
 
+
+    const onInvalid = () => {
+        clearLoginError();
+    };
+
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4">
+
             <Card className="w-full max-w-md">
+
                 <CardHeader>
+
                     <CardTitle>
                         Login
                     </CardTitle>
+
                 </CardHeader>
 
+
                 <CardContent>
+
                     <form
                         onSubmit={
-                            handleSubmit
+                            handleSubmit(
+                                onSubmit,
+                                onInvalid
+                            )
                         }
                         className="space-y-4"
                     >
+
                         <div className="space-y-2">
+
                             <Input
                                 type="text"
                                 placeholder="Username"
-                                value={
-                                    username
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    setUsername(
-                                        event
-                                            .target
-                                            .value
-                                    )
+                                {...register(
+                                    "username",
+                                    {
+                                        onChange:
+                                            clearLoginError,
+                                    }
+                                )}
+                            />
+
+                            <FormErrorMessage
+                                message={
+                                    errors
+                                        .username
+                                        ?.message
                                 }
                             />
 
-                            {usernameError && (
-                                <p className="text-sm text-red-600">
-                                    {
-                                        usernameError
-                                    }
-                                </p>
-                            )}
                         </div>
 
+
                         <div className="space-y-2">
+
                             <Input
                                 type="password"
                                 placeholder="Password"
-                                value={
-                                    password
-                                }
-                                onChange={(
-                                    event
-                                ) =>
-                                    setPassword(
-                                        event
-                                            .target
-                                            .value
-                                    )
+                                {...register(
+                                    "password",
+                                    {
+                                        onChange:
+                                            clearLoginError,
+                                    }
+                                )}
+                            />
+
+                            <FormErrorMessage
+                                message={
+                                    errors
+                                        .password
+                                        ?.message
                                 }
                             />
 
-                            {passwordError && (
-                                <p className="text-sm text-red-600">
-                                    {
-                                        passwordError
-                                    }
-                                </p>
-                            )}
                         </div>
 
-                        {error && (
-                            <p className="text-sm text-red-600">
-                                {error}
-                            </p>
-                        )}
+
+                        <FormErrorMessage
+                            message={
+                                loginError
+                            }
+                        />
+
 
                         <Button
                             type="submit"
@@ -307,16 +327,23 @@ const LoginForm = () => {
                                     .isPending
                             }
                         >
+
                             {loginMutation
                                 .isPending
                                 ? "Logging in..."
                                 : "Login"}
+
                         </Button>
+
                     </form>
+
                 </CardContent>
+
             </Card>
+
         </div>
     );
 };
+
 
 export default LoginForm;
